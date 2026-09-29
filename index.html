@@ -222,6 +222,9 @@
                             <button id="student-video-restart" onclick="restartStudentVideo()" class="bg-slate-900/90 hover:bg-slate-800 border border-slate-500 text-slate-100 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
                                 <i class="fas fa-rotate-left"></i> מההתחלה
                             </button>
+                            <button id="student-video-unmute" onclick="unmuteStudentVideo()" class="hidden bg-amber-600 hover:bg-amber-500 border border-amber-300 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition">
+                                <i class="fas fa-volume-high"></i> הפעלת קול
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -313,6 +316,7 @@
             errorLink: document.getElementById('student-video-error-link'),
             toggleBtn: document.getElementById('student-video-toggle'),
             restartBtn: document.getElementById('student-video-restart'),
+            unmuteBtn: document.getElementById('student-video-unmute'),
             replayBtn: document.getElementById('student-replay-btn'),
             stage: document.getElementById('student-stage'),
             area: document.getElementById('student-stage-area')
@@ -391,6 +395,7 @@
             videoDOM.error.classList.remove('hidden');
             videoDOM.toggleBtn.classList.add('hidden');
             videoDOM.restartBtn.classList.add('hidden');
+            videoDOM.unmuteBtn.classList.add('hidden');
         }
 
         function destroyStudentVideo() {
@@ -408,6 +413,7 @@
             videoDOM.replayBtn.classList.add('hidden');
             videoDOM.toggleBtn.classList.remove('hidden');
             videoDOM.restartBtn.classList.remove('hidden');
+            videoDOM.unmuteBtn.classList.add('hidden');
             videoDOM.errorLink.href = url;
             setToggleButton(false);
             studentDOM.hint.innerText = "/// צפו בסרטון. אפשר לעצור ולהפעיל מחדש ///";
@@ -416,17 +422,38 @@
             if (token !== stageToken) return;
             if (!(window.YT && window.YT.Player)) { showVideoError('api'); return; }
 
-            videoDOM.holder.innerHTML = '<div id="student-video-player"></div>';
-            ytPlayer = new YT.Player('student-video-player', {
-                videoId: videoId,
-                width: '100%',
-                height: '100%',
-                playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, iv_load_policy: 3, fs: 0, disablekb: 1 },
+            // ה-iframe נוצר כאן ישירות כדי לתת לו הרשאת הפעלה אוטומטית (allow=autoplay)
+            const params = new URLSearchParams({ enablejsapi: '1', autoplay: '1', controls: '0', rel: '0', modestbranding: '1', playsinline: '1', iv_load_policy: '3', fs: '0', disablekb: '1' });
+            if (/^https?:$/.test(location.protocol)) params.set('origin', location.origin);
+            const iframe = document.createElement('iframe');
+            iframe.id = 'student-video-player';
+            iframe.src = 'https://www.youtube.com/embed/' + videoId + '?' + params.toString();
+            iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+            iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+            iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0';
+            videoDOM.holder.innerHTML = '';
+            videoDOM.holder.appendChild(iframe);
+
+            ytPlayer = new YT.Player(iframe, {
                 events: {
-                    onReady: (e) => { try { e.target.playVideo(); } catch (err) {} },
+                    onReady: (e) => {
+                        try { e.target.playVideo(); } catch (err) {}
+                        // אם הדפדפן חסם הפעלה עם קול, מפעילים ללא קול ומציגים כפתור להפעלת קול
+                        setTimeout(() => {
+                            if (token !== stageToken || !ytPlayer) return;
+                            const st = ytPlayer.getPlayerState();
+                            if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING && st !== YT.PlayerState.ENDED) {
+                                ytPlayer.mute();
+                                ytPlayer.playVideo();
+                            }
+                        }, 1200);
+                    },
                     onStateChange: (e) => {
                         if (token !== stageToken) return;
-                        if (e.data === YT.PlayerState.PLAYING) setToggleButton(true);
+                        if (e.data === YT.PlayerState.PLAYING) {
+                            setToggleButton(true);
+                            videoDOM.unmuteBtn.classList.toggle('hidden', !(ytPlayer && ytPlayer.isMuted && ytPlayer.isMuted()));
+                        }
                         else if (e.data === YT.PlayerState.ENDED) setTimeout(() => { if (token === stageToken) showStudentImage(); }, 0);
                         else setToggleButton(false);
                     },
@@ -449,6 +476,11 @@
             const st = ytPlayer.getPlayerState();
             if (st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING) ytPlayer.pauseVideo();
             else ytPlayer.playVideo();
+        }
+
+        function unmuteStudentVideo() {
+            if (ytPlayer && ytPlayer.unMute) { ytPlayer.unMute(); ytPlayer.setVolume(100); }
+            videoDOM.unmuteBtn.classList.add('hidden');
         }
 
         function restartStudentVideo() {
