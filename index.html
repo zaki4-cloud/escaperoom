@@ -423,7 +423,7 @@
             if (!(window.YT && window.YT.Player)) { showVideoError('api'); return; }
 
             // ה-iframe נוצר כאן ישירות כדי לתת לו הרשאת הפעלה אוטומטית (allow=autoplay)
-            const params = new URLSearchParams({ enablejsapi: '1', autoplay: '1', controls: '0', rel: '0', modestbranding: '1', playsinline: '1', iv_load_policy: '3', fs: '0', disablekb: '1' });
+            const params = new URLSearchParams({ enablejsapi: '1', autoplay: '1', controls: '0', rel: '0', modestbranding: '1', playsinline: '1', iv_load_policy: '3', cc_load_policy: '0', fs: '0', disablekb: '1' });
             if (/^https?:$/.test(location.protocol)) params.set('origin', location.origin);
             const iframe = document.createElement('iframe');
             iframe.id = 'student-video-player';
@@ -438,6 +438,7 @@
                 events: {
                     onReady: (e) => {
                         try { e.target.playVideo(); } catch (err) {}
+                        try { e.target.unloadModule('captions'); e.target.unloadModule('cc'); } catch (err) {}
                         // אם הדפדפן חסם הפעלה עם קול, מפעילים ללא קול ומציגים כפתור להפעלת קול
                         setTimeout(() => {
                             if (token !== stageToken || !ytPlayer) return;
@@ -452,6 +453,7 @@
                         if (token !== stageToken) return;
                         if (e.data === YT.PlayerState.PLAYING) {
                             setToggleButton(true);
+                            try { ytPlayer.unloadModule('captions'); ytPlayer.unloadModule('cc'); } catch (err) {}
                             videoDOM.unmuteBtn.classList.toggle('hidden', !(ytPlayer && ytPlayer.isMuted && ytPlayer.isMuted()));
                         }
                         else if (e.data === YT.PlayerState.ENDED) setTimeout(() => { if (token === stageToken) showStudentImage(); }, 0);
