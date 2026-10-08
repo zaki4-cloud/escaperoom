@@ -48,6 +48,21 @@
         #student-stage { position: relative; width: 100%; height: 100%; }
         #student-image { width: 100%; height: 100%; object-fit: contain; display: block; }
 
+        /* גובה נכון בדפדפני נייד (בלי שסרגל הכתובת יחתוך את התחתית) */
+        @supports (height: 100dvh) {
+            body.h-screen, #screen-student, #screen-teacher { height: 100dvh; }
+        }
+
+        /* כפתור הגדלה: מוצג רק בנייד (מסך צר, או נייד במצב אופקי) */
+        .mobile-only { display: none; }
+        @media (max-width: 767px), (max-height: 520px) { .mobile-only { display: flex; } }
+
+        /* מצב תצוגה מוגדלת: כותרת מצומצמת בלבד, בלי כיסוי של התמונה/הסרטון */
+        body.immersive #student-header { padding: 4px 8px; }
+        body.immersive #student-header h1 { display: none; }
+        body.immersive #student-hint-text { display: none; }
+        body.immersive #screen-student main { padding: 0; }
+
         .type-pill { transition: all 0.2s; cursor: pointer; border: 1px solid #334155; opacity: 0.6; }
         .type-pill.active { opacity: 1; border-color: #06b6d4; background-color: rgba(6, 182, 212, 0.1); }
     </style>
@@ -172,6 +187,10 @@
                             <label class="text-[10px] font-bold text-cyan-500 uppercase tracking-widest flex items-center gap-2">תשובה:</label>
                             <input id="teacher-input-answer" type="text" class="bg-[#0b1120] border border-slate-700 rounded-lg px-4 py-2 text-cyan-300 h-full focus:ring-1 focus:ring-cyan-500 theme-font text-base">
                         </div>
+                        <div class="flex flex-col gap-1 col-span-2">
+                            <label for="teacher-input-success" class="text-[10px] font-bold text-cyan-500 tracking-widest">הודעה לתלמיד כשהתשובה נכונה (ריק = ההודעה הרגילה):</label>
+                            <input id="teacher-input-success" type="text" maxlength="150" autocomplete="off" placeholder="הקוד נכון! המנעול נפתח." class="bg-[#0b1120] border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 text-sm">
+                        </div>
                     </div>
                     
                     <div id="teacher-nav-msg" class="hidden w-full bg-indigo-900/40 p-3 rounded-xl border border-indigo-700 text-center shadow-xl shrink-0 backdrop-blur-sm">
@@ -184,15 +203,19 @@
 
     <!-- מסך תלמיד (משחק) -->
     <div id="screen-student" class="hidden flex-1 flex flex-col bg-[#0b1120] overflow-hidden h-screen relative">
-        <header id="student-header" class="bg-slate-900/90 backdrop-blur-md p-4 border-b border-cyan-900/50 flex justify-between items-center shadow-lg z-30 shrink-0 text-center">
-            <h1 class="font-bold text-cyan-400 theme-font text-3xl tracking-widest flex items-center gap-3">
+        <header id="student-header" class="bg-slate-900/90 backdrop-blur-md p-2 md:p-4 border-b border-cyan-900/50 flex justify-between items-center shadow-lg z-30 shrink-0 text-center">
+            <h1 class="font-bold text-cyan-400 theme-font text-3xl tracking-widest hidden sm:flex items-center gap-3">
                 <i class="fas fa-lock-open text-slate-500"></i> חדר בריחה
             </h1>
-            <div class="flex items-center gap-4 text-center">
-                <button id="btn-back-to-edit" onclick="returnToEditor()" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-500 text-slate-300 px-4 py-2 rounded-lg flex items-center gap-2 transition text-sm">
-                    <i class="fas fa-arrow-right"></i> חזרה לעריכה
+            <div class="flex items-center gap-2 md:gap-4 text-center">
+                <button id="btn-prev-stage" onclick="goToPreviousStage()" title="חזרה לשלב הקודם" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-500 text-slate-200 px-3 md:px-4 py-1.5 md:py-2 rounded-lg flex items-center gap-2 transition text-sm font-bold">
+                    <i class="fas fa-circle-chevron-right"></i> שלב קודם
                 </button>
-                <div id="student-progress-text" class="text-cyan-100 font-bold bg-[#0b1120] border border-cyan-800 px-6 py-2 rounded-full text-sm tracking-wide shadow-[0_0_10px_rgba(6,182,212,0.1)] text-center"></div>
+                <button id="btn-immersive" onclick="toggleImmersive()" title="הגדלת התצוגה" aria-label="הגדלת התצוגה" class="mobile-only bg-slate-800 hover:bg-slate-700 border border-slate-500 text-slate-200 px-3 py-1.5 rounded-lg items-center gap-2 transition text-sm font-bold"><i class="fas fa-expand"></i></button>
+                <button id="btn-back-to-edit" onclick="returnToEditor()" class="hidden bg-slate-800 hover:bg-slate-700 border border-slate-500 text-slate-300 px-4 py-2 rounded-lg flex items-center gap-2 transition text-sm">
+                    <i class="fas fa-arrow-right"></i><span class="hidden sm:inline">חזרה לעריכה</span>
+                </button>
+                <div id="student-progress-text" class="text-cyan-100 font-bold bg-[#0b1120] border border-cyan-800 px-3 md:px-6 py-1.5 md:py-2 rounded-full text-sm tracking-wide shadow-[0_0_10px_rgba(6,182,212,0.1)] text-center"></div>
             </div>
         </header>
 
@@ -262,13 +285,6 @@
         </div>
     </div>
 
-    <footer class="p-2 bg-slate-950/90 border-t border-slate-900 flex flex-col items-center shrink-0 z-50 text-center">
-        <img src="pic.png" alt="אריאל קלפנר" class="w-8 h-8 rounded-full mb-1 border border-cyan-500/40 shadow-lg object-cover" onerror="this.style.display='none'">
-        <p class="text-[9px] md:text-[11px] text-slate-500 theme-font tracking-wide text-center">
-            אריאל קלפנר, טכנופדגוגיה, בינה מלאכותית והערכה בחינוך - 050-9540538
-        </p>
-    </footer>
-
     <script>
         let userRole = null; 
         let levels = [];
@@ -291,6 +307,7 @@
             hotspot: document.getElementById('teacher-hotspot'),
             inputQ: document.getElementById('teacher-input-question'),
             inputA: document.getElementById('teacher-input-answer'),
+            inputSuccess: document.getElementById('teacher-input-success'),
             editPanel: document.getElementById('teacher-edit-panel'),
             navMsg: document.getElementById('teacher-nav-msg'),
             navText: document.getElementById('nav-msg-text'),
@@ -325,6 +342,7 @@
         let ytPlayer = null;
         let stageToken = 0;
         let stageBaseHint = '';
+        let immersiveFs = false;
 
         function fitStudentStage() {
             const img = studentDOM.img;
@@ -340,7 +358,46 @@
         }
         studentDOM.img.addEventListener('load', fitStudentStage);
         window.addEventListener('resize', fitStudentStage);
-        document.addEventListener('fullscreenchange', () => setTimeout(fitStudentStage, 100));
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && immersiveFs) { immersiveFs = false; setImmersive(false); }
+            setTimeout(fitStudentStage, 100);
+        });
+
+        // ===== תצוגה מוגדלת (נייד): מסתירים כותרת ורמזים, והבמה תופסת את כל המסך =====
+        function setImmersive(on) {
+            document.body.classList.toggle('immersive', on);
+            const btn = document.getElementById('btn-immersive');
+            if (btn) {
+                btn.innerHTML = on ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+                btn.title = on ? 'חזרה לתצוגה רגילה' : 'הגדלת התצוגה';
+                btn.setAttribute('aria-label', btn.title);
+            }
+            requestAnimationFrame(fitStudentStage);
+            setTimeout(fitStudentStage, 150);
+        }
+
+        function toggleImmersive() {
+            const on = !document.body.classList.contains('immersive');
+            setImmersive(on);
+            const root = document.documentElement;
+            if (on) {
+                // מסך מלא אמיתי היכן שנתמך (למשל אנדרואיד). באייפון נשארים עם התצוגה המוגדלת בלבד
+                if (root.requestFullscreen && !document.fullscreenElement) {
+                    immersiveFs = true;
+                    try { root.requestFullscreen().catch(() => { immersiveFs = false; }); } catch (e) { immersiveFs = false; }
+                }
+            } else {
+                immersiveFs = false;
+                if (document.fullscreenElement && document.exitFullscreen) { try { document.exitFullscreen().catch(() => {}); } catch (e) {} }
+            }
+        }
+
+        function exitImmersiveMode() {
+            if (!document.body.classList.contains('immersive')) return;
+            setImmersive(false);
+            immersiveFs = false;
+            if (document.fullscreenElement && document.exitFullscreen) { try { document.exitFullscreen().catch(() => {}); } catch (e) {} }
+        }
 
         // ===== סרטון יוטיוב בשלב =====
         function extractYouTubeId(url) {
@@ -516,7 +573,7 @@
         function showScreen(screenName) {
             Object.values(screens).forEach(s => { if (s) s.classList.add('hidden'); });
             if (screens[screenName]) screens[screenName].classList.remove('hidden');
-            if (screenName !== 'student') destroyStudentVideo();
+            if (screenName !== 'student') { destroyStudentVideo(); exitImmersiveMode(); }
             else fitStudentStage();
         }
 
@@ -562,6 +619,13 @@
 
         function returnToEditor() { showScreen('teacher'); renderTeacherUI(); }
 
+        function goToPreviousStage() {
+            if (currentLevelIndex <= 0) return;
+            closeModal();
+            currentLevelIndex--;
+            renderStudentUI();
+        }
+
         function handleNewGame(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -586,7 +650,8 @@
                         ...l, 
                         type: l.type || 'puzzle',
                         hotspot: l.hotspot || { x: 40, y: 40, width: 20, height: 20 },
-                        video: l.video || ''
+                        video: l.video || '',
+                        successMessage: l.successMessage || ''
                     }));
                     
                     currentLevelIndex = 0;
@@ -668,6 +733,7 @@
                 question: 'מהו הקוד למנעול?',
                 answer: '',
                 video: '',
+                successMessage: '',
                 hotspot: { x: 40, y: 40, width: 20, height: 20 }
             };
             if (levels.length === 0) { levels.push(newLevel); currentLevelIndex = 0; }
@@ -736,6 +802,7 @@
                 if (teacherDOM.navMsg) teacherDOM.navMsg.classList.add('hidden');
                 if (teacherDOM.inputQ) teacherDOM.inputQ.value = current.question || "";
                 if (teacherDOM.inputA) teacherDOM.inputA.value = current.answer || "";
+                if (teacherDOM.inputSuccess) teacherDOM.inputSuccess.value = current.successMessage || "";
             } else {
                 if (teacherDOM.editPanel) teacherDOM.editPanel.classList.add('hidden');
                 if (teacherDOM.navMsg) teacherDOM.navMsg.classList.remove('hidden');
@@ -752,6 +819,7 @@
             if (levels[currentLevelIndex]) levels[currentLevelIndex].video = e.target.value.trim();
             updateVideoStatus(e.target.value);
         };
+        if (teacherDOM.inputSuccess) teacherDOM.inputSuccess.oninput = (e) => { if (levels[currentLevelIndex]) levels[currentLevelIndex].successMessage = e.target.value; };
         if (teacherDOM.inputA) teacherDOM.inputA.oninput = (e) => { if (levels[currentLevelIndex]) levels[currentLevelIndex].answer = e.target.value; };
 
         function updateHotspotVisual(el, data) {
@@ -764,6 +832,9 @@
             const current = levels[currentLevelIndex];
             if (!current) return;
             
+            const prevBtn = document.getElementById('btn-prev-stage');
+            if (prevBtn) prevBtn.classList.toggle('hidden', currentLevelIndex === 0);
+
             const puzzleCount = levels.filter(l => l.type === 'puzzle').length;
             const currentPuzzleIdx = levels.slice(0, currentLevelIndex + 1).filter(l => l.type === 'puzzle').length;
 
@@ -796,8 +867,10 @@
             const correct = (current.answer || "").trim().toLowerCase();
             const fb = studentDOM.modalFeedback;
             if (input === correct || (correct.length > 2 && input.includes(correct))) {
-                fb.innerHTML = `<i class="fas fa-check-circle ml-2"></i> הקוד נכון! המנעול נפתח.`;
-                fb.className = "mt-3 block text-green-400 bg-green-900/20 py-2 rounded-lg text-center font-bold";
+                const successMsg = (current.successMessage || '').trim() || 'הקוד נכון! המנעול נפתח.';
+                fb.innerHTML = '<i class="fas fa-check-circle ml-2"></i>';
+                fb.appendChild(document.createTextNode(successMsg));
+                fb.className = "mt-3 block text-green-400 bg-green-900/20 py-2 px-3 rounded-lg text-center font-bold";
                 fb.classList.remove('hidden');
                 setTimeout(() => { 
                     closeModal(); 
@@ -807,7 +880,7 @@
                     } else { 
                         showScreen('victory'); 
                     } 
-                }, 1500);
+                }, Math.min(6000, Math.max(1500, successMsg.length * 80)));
             } else {
                 fb.innerHTML = `<i class="fas fa-times-circle ml-2"></i> קוד שגוי. נסו שוב!`;
                 fb.className = "mt-3 block text-red-400 bg-red-900/20 py-2 rounded-lg text-center font-bold";
